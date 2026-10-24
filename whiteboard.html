@@ -31,10 +31,10 @@ svg.layer, #txt { position: absolute; left: 0; top: 0; pointer-events: none; ove
 #sel { position: absolute; border: 1.5px dashed #4a78d8; pointer-events: none; display: none; }
 #sel i { position: absolute; right: -8px; bottom: -8px; width: 14px; height: 14px; background: #fff; border: 2px solid #4a78d8; border-radius: 3px; }
 
-#bar { position: fixed; top: 8px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 2px; align-items: center;
+#bar { position: fixed; top: 8px; left: 12px; right: 12px; display: flex; flex-direction: column; gap: 2px; align-items: stretch;
   background: #fff; border: 1px solid #e1e4ec; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.12);
-  padding: 4px 6px; z-index: 10; font-size: 14px; user-select: none; white-space: nowrap; flex-wrap: wrap; justify-content: center; max-width: calc(100vw - 24px); }
-body.lesson #bar { max-width: calc(100vw - 2 * 270px); }
+  padding: 4px 6px; z-index: 10; font-size: 14px; user-select: none; white-space: nowrap; flex-wrap: wrap; justify-content: center; }
+body.lesson #bar { right: 270px; }
 #bar.hidden { display: none; }
 .modes { display: inline-flex; border: 1px solid #cfd3dd; border-radius: 9px; overflow: hidden; }
 .modes button { border-radius: 0; padding: 5px 9px; }
@@ -47,6 +47,7 @@ body.lesson #bar { max-width: calc(100vw - 2 * 270px); }
 #smartBar svg { width: 28px; height: 28px; display: block; }
 #smartBar .sbw { color: #888; padding: 0 6px; }
 .brow { display: flex; gap: 2px; align-items: center; flex-wrap: wrap; justify-content: center; }
+.keys { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 2px 14px; font-size: 13px; margin-bottom: 6px; }
 .brow.small { font-size: 13px; border-top: 1px solid #eef0f4; padding-top: 2px; }
 .brow.small button { padding: 4px 7px; }
 .chip.on, #bgChips button.on, #themeChips button.on { background: #e3e9fb; color: var(--blue); font-weight: 600; }
@@ -174,7 +175,7 @@ kbd { background: #f1f3f7; border: 1px solid #d8dce5; border-radius: 4px; paddin
 <button id="endBtn" title="End the lesson and save the board"><span class="dot"></span><span>End lesson · <span id="endClock">0:00:00</span><small id="endInfo"></small></span></button>
 
 
-<div id="help" class="pop" style="max-width:720px">
+<div id="help" class="pop" style="max-width:760px;max-height:88vh;overflow:auto">
   <h3>How to use the whiteboard</h3>
   <b>✨ Smart</b> — write or draw with the pen, then pause one second: handwriting becomes typed text, a rough circle, square, triangle or line becomes a clean one, and for drawings a bar offers clean pictures. Click another guess in the bar, or <b>Keep mine</b> to keep exactly what you drew. <b>Default</b> = nothing changes.<br>
   <b>Type</b> — click anywhere and type. <kbd>Enter</kbd> = new line, <kbd>Esc</kbd> = finished. Or just start typing: it goes on the next line.
@@ -185,7 +186,17 @@ kbd { background: #f1f3f7; border: 1px solid #d8dce5; border-radius: 4px; paddin
   <b>Scroll</b> — the board gets bigger than the screen: two-finger swipe on the touchpad (or mouse wheel; <kbd>Shift</kbd>+wheel = sideways). The little map at the bottom left shows where you are.<br>
   <b>Timer</b> — choose what it is for and how long; it counts down in the corner and rings at the end.<br>
   <b>Start lesson</b> — type the course and session; the red <b>End lesson</b> button stays in the top-right corner. When you press it, every page of the lesson is saved as one picture in <i>WHITEBOARD\Sessions</i>.<br>
-  <kbd>Ctrl</kbd>+<kbd>Z</kbd> undo · <kbd>Ctrl</kbd>+<kbd>Y</kbd> redo · <kbd>Page Up</kbd>/<kbd>Page Down</kbd> pages · <kbd>Tab</kbd> hide the toolbar · <kbd>F11</kbd> full screen.
+  <h3 style="margin-top:12px">Keyboard: hold <kbd>Alt</kbd> and press the first letter</h3>
+  <div class="keys">
+   <span><kbd>Alt</kbd>+<kbd>T</kbd> Type</span><span><kbd>Alt</kbd>+<kbd>P</kbd> Pen</span><span><kbd>Alt</kbd>+<kbd>H</kbd> Highlighter (Mark)</span><span><kbd>Alt</kbd>+<kbd>E</kbd> Erase</span>
+   <span><kbd>Alt</kbd>+<kbd>M</kbd> Move</span><span><kbd>Alt</kbd>+<kbd>A</kbd> Auto: Smart on / off</span><span><kbd>Alt</kbd>+<kbd>1</kbd>…<kbd>5</kbd> Colours</span><span><kbd>Alt</kbd>+<kbd>+</kbd> / <kbd>Alt</kbd>+<kbd>-</kbd> Bigger / smaller</span>
+   <span><kbd>Alt</kbd>+<kbd>B</kbd> Bold</span><span><kbd>Alt</kbd>+<kbd>U</kbd> Underline</span><span><kbd>Alt</kbd>+<kbd>W</kbd> Writing style</span><span><kbd>Alt</kbd>+<kbd>I</kbd> Images (pictures)</span>
+   <span><kbd>Alt</kbd>+<kbd>N</kbd> New page</span><span><kbd>Alt</kbd>+<kbd>←</kbd> / <kbd>→</kbd> Pages</span><span><kbd>Alt</kbd>+<kbd>O</kbd> Open prepared</span><span><kbd>Alt</kbd>+<kbd>R</kbd> Roll: scroll on / off</span>
+   <span><kbd>Alt</kbd>+<kbd>C</kbd> Clock: timer</span><span><kbd>Alt</kbd>+<kbd>L</kbd> Lesson start / end</span><span><kbd>Alt</kbd>+<kbd>G</kbd> Grid / lines / plain</span><span><kbd>Alt</kbd>+<kbd>K</kbd> blacKboard colours</span>
+   <span><kbd>Alt</kbd>+<kbd>S</kbd> Save page picture</span><span><kbd>Alt</kbd>+<kbd>F</kbd> Full screen</span><span><kbd>Alt</kbd>+<kbd>Delete</kbd> Clear page</span><span><kbd>F1</kbd> or <kbd>Alt</kbd>+<kbd>/</kbd> This help</span>
+   <span><kbd>Ctrl</kbd>+<kbd>Z</kbd> Undo · <kbd>Ctrl</kbd>+<kbd>Y</kbd> Redo</span><span><kbd>Page Up</kbd>/<kbd>Down</kbd> Pages</span><span><kbd>Tab</kbd> Hide the toolbar</span><span><kbd>Esc</kbd> Finish typing</span>
+  </div>
+  <span style="font-size:13px;color:#666">The Alt keys work even while you are typing. Pointing at a button also shows its key.</span>
   <div class="row"><button class="btn" data-close>Close</button></div>
 </div>
 
@@ -983,8 +994,33 @@ world.addEventListener('pointercancel', endDrag);
 world.addEventListener('pointerleave', () => { $('ring').style.display = 'none'; });
 
 /* ---------- keyboard ---------- */
+/* ---------- Alt + first letter: every tool and option ---------- */
+const ALTKEYS = { t: '[data-tool="text"]', p: '[data-tool="pen"]', h: '[data-tool="hl"]', e: '[data-tool="erase"]', m: '[data-tool="move"]',
+  w: '#fontBtn', b: '#boldBtn', u: '#underBtn', i: '#picBtn', n: '#addBtn', o: '#prepBtn', c: '#timerBtn', r: '#scrollBtn',
+  s: '#pngBtn', f: '#fsBtn', '/': '#helpBtn', delete: '#clearBtn', arrowleft: '#prevBtn', arrowright: '#nextBtn' };
+const KEYNAME = { '/': '/', delete: 'Delete', arrowleft: '←', arrowright: '→' };
+for (const [k, sel] of Object.entries(ALTKEYS)) { const b = bar.querySelector(sel); if (b) b.title += ` (Alt+${KEYNAME[k] || k.toUpperCase()})`; }
+function nextChip(id) { const bs = [...$(id).children]; return bs[(bs.findIndex(x => x.classList.contains('on')) + 1) % bs.length]; }
+function altKey(e) {
+  const k = e.key.toLowerCase(), digit = /^(?:Digit|Numpad)([1-5])$/.exec(e.code), z = Object.keys(SIZES);
+  let b = ALTKEYS[k] && bar.querySelector(ALTKEYS[k]);
+  if (digit) b = bar.querySelector(`[data-color="${digit[1] - 1}"]`);
+  else if ('=+-_'.includes(k) || e.code === 'NumpadAdd' || e.code === 'NumpadSubtract') {
+    const i = z.indexOf(ui.size) + ('=+'.includes(k) || e.code === 'NumpadAdd' ? 1 : -1);
+    b = bar.querySelector(`[data-size="${z[Math.max(0, Math.min(z.length - 1, i))]}"]`);
+  }
+  else if (k === 'a') b = bar.querySelector(`[data-mode="${ui.mode === 'smart' ? 'default' : 'smart'}"]`);
+  else if (k === 'g') b = nextChip('bgChips');
+  else if (k === 'k') b = nextChip('themeChips');
+  else if (k === 'l') b = S.lesson ? $('endBtn') : $('startBtn');
+  if (!b) return false;
+  e.preventDefault(); b.click(); return true;
+}
 document.addEventListener('keydown', e => {
   const ctrl = e.ctrlKey || e.metaKey;
+  const inField = e.target.matches && e.target.matches('input, select, textarea');
+  if (e.key === 'F1') { e.preventDefault(); $('helpBtn').click(); return; }
+  if (e.altKey && !ctrl && !inField && altKey(e)) return;
   if (editing) {
     if (e.key === 'Escape') { e.preventDefault(); commitEdit(); }
     else if (e.key === 'Tab') e.preventDefault();
