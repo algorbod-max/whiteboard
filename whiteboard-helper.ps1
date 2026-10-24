@@ -84,8 +84,8 @@ while ($listener.IsListening) {
             while (Test-Path -LiteralPath $file) { $file = Join-Path $dir ($name -replace '\.png$', " ($n).png"); $n++ }
             $fs = [IO.File]::Create($file)
             try { $req.InputStream.CopyTo($fs) } finally { $fs.Close() }
-            $json = '{"ok":true,"folder":"' + $folder + '","name":"' + (Split-Path -Leaf $file) + '"}'
-            SendText $res 200 'application/json' $json
+            $reply = '{"ok":true,"folder":"' + $folder + '","name":"' + (Split-Path -Leaf $file) + '"}'
+            SendText $res 200 'application/json' $reply
         }
         elseif ($req.HttpMethod -eq 'POST' -and $path -eq '/recognize') {
             if (-not $recognizer) { SendText $res 503 'text/plain' 'no handwriting recogniser'; continue }
@@ -93,6 +93,17 @@ while ($listener.IsListening) {
             $body = $json.DeserializeObject($reader.ReadToEnd()); $reader.Close()
             $words = Read-Handwriting $body['strokes']
             SendText $res 200 'application/json' ($json.Serialize(@{ words = $words }))
+        }
+        elseif ($path -eq '/prepared') {
+            $dir = Join-Path $root 'Prepared'
+            $names = @(); if (Test-Path -LiteralPath $dir) { $names = @(Get-ChildItem -LiteralPath $dir -Filter '*.json' | Sort-Object LastWriteTime -Descending | ForEach-Object { $_.BaseName }) }
+            SendText $res 200 'application/json' ($json.Serialize(@{ lessons = [string[]]$names }))
+        }
+        elseif ($path -like '/Prepared/*') {
+            $name = Clean ([IO.Path]::GetFileName($path))
+            $file = Join-Path (Join-Path $root 'Prepared') $name
+            if ($name -match '\.json$' -and (Test-Path -LiteralPath $file)) { Send $res 200 'application/json; charset=utf-8' ([IO.File]::ReadAllBytes($file)) }
+            else { SendText $res 404 'text/plain' 'not found' }
         }
         elseif ($path -eq '/ping') { SendText $res 200 'text/plain' 'ok' }
         elseif ($path -eq '/open') {

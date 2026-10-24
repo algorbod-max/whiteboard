@@ -140,7 +140,8 @@ kbd { background: #f1f3f7; border: 1px solid #d8dce5; border-radius: 4px; paddin
   <span class="sep"></span>
   <span id="swatches"></span>
   <span class="sep"></span>
-  <button data-size="S" title="Small">S</button><button data-size="M" title="Medium">M</button><button data-size="L" title="Large">L</button>
+  <button data-size="S" title="Small">S</button><button data-size="M" title="Medium">M</button><button data-size="L" title="Large">L</button><button data-size="XL" title="Extra large">XL</button>
+  <button id="boldBtn" title="Bold (Ctrl+B): select words while typing, or a text in Move mode" style="font-weight:700">B</button><button id="underBtn" title="Underline (Ctrl+U): select words while typing, or a text in Move mode" style="text-decoration:underline">U</button>
   <button id="fontBtn" title="Writing style">Aa</button>
   <span class="sep"></span>
   <button id="picBtn" title="Shapes and pictures (stick figures, faces, bubbles, objects)">◇&nbsp;Pictures</button>
@@ -153,6 +154,7 @@ kbd { background: #f1f3f7; border: 1px solid #d8dce5; border-radius: 4px; paddin
   <button id="prevBtn" title="Previous page (Page Up)">◀</button><span id="pageLabel"></span><button id="nextBtn" title="Next page (Page Down)">▶</button>
   <button id="addBtn" title="New page">+&nbsp;Page</button>
   <span class="sep"></span>
+  <button id="prepBtn" title="Open a lesson page prepared in advance">📂&nbsp;Prepared</button>
   <button id="scrollBtn" title="Scroll: make the board bigger than the screen (down and right)">⇕&nbsp;Scroll</button>
   <button id="timerBtn" title="Timer for assignments, quizzes, tests…">⏱&nbsp;Timer</button>
   <button id="startBtn" title="Start a lesson: at the end the whole board is saved as one picture">●&nbsp;Start lesson</button>
@@ -187,6 +189,7 @@ kbd { background: #f1f3f7; border: 1px solid #d8dce5; border-radius: 4px; paddin
   <div class="row"><button class="btn" data-close>Close</button></div>
 </div>
 
+<div id="prepPop" class="pop" style="width:480px"><h3>Prepared lesson pages</h3><div id="prepList"></div><div class="row"><button class="btn" data-close>Close</button></div></div>
 <div id="pics" class="pop"><div id="picTabs"></div><div id="picGrid"></div></div>
 
 <div id="timerPop" class="pop" style="width:520px">
@@ -233,7 +236,7 @@ kbd { background: #f1f3f7; border: 1px solid #d8dce5; border-radius: 4px; paddin
 <script>
 "use strict";
 const LINE = 50, OFF = 40, MARGIN = 90, FIRST = 140;
-const SIZES = { S: { font: 30, lh: 50, pen: 3, hl: 18, pic: 2.5, box: 100 }, M: { font: 40, lh: 50, pen: 5, hl: 28, pic: 3.5, box: 160 }, L: { font: 64, lh: 100, pen: 9, hl: 44, pic: 5, box: 240 } };
+const SIZES = { S: { font: 30, lh: 50, pen: 3, hl: 18, pic: 2.5, box: 100 }, M: { font: 40, lh: 50, pen: 5, hl: 28, pic: 3.5, box: 160 }, L: { font: 64, lh: 100, pen: 9, hl: 44, pic: 5, box: 240 }, XL: { font: 96, lh: 150, pen: 14, hl: 60, pic: 7, box: 320 } };
 const FONTS = {
   print: { css: '"Segoe Print", "Comic Sans MS", cursive', label: 'Handwriting' },
   ink:   { css: '"Ink Free", "Segoe Print", cursive',      label: 'Marker' },
@@ -476,9 +479,23 @@ const lineBelow = y => OFF + LINE * Math.max(1, Math.ceil((y - OFF) / LINE));
 const nearestLine = y => OFF + LINE * Math.max(1, Math.round((y - OFF) / LINE));
 const lastBaseline = o => o.line + (o.text.split('\n').length - 1) * SIZES[o.size].lh;
 const mctx = document.createElement('canvas').getContext('2d');
+/* text may carry runs [[text, flags]] — flags: 'b' bold, 'u' underline */
+const runsOf = o => o.runs || [[o.text, '']];
+const flags = (b, u) => (b ? 'b' : '') + (u ? 'u' : '');
+const fontOf = (o, f) => `${f.includes('b') ? 'bold ' : ''}${SIZES[o.size].font}px ${FONTS[o.font].css}`;
+function setRuns(o, runs) {
+  const m = [];
+  for (const [t, f] of runs) { const l = m[m.length - 1]; if (!t) continue; if (l && l[1] === f) l[0] += t; else m.push([t, f]); }
+  o.text = m.map(r => r[0]).join('');
+  if (m.some(r => r[1])) o.runs = m; else delete o.runs;
+}
+function textLines(o) {                   // one array of [text, flags] per line
+  const lines = [[]];
+  for (const [t, f] of runsOf(o)) t.split('\n').forEach((s, i) => { if (i) lines.push([]); if (s) lines[lines.length - 1].push([s, f]); });
+  return lines;
+}
 function textWidth(o) {
-  mctx.font = `${SIZES[o.size].font}px ${FONTS[o.font].css}`;
-  return Math.max(8, ...o.text.split('\n').map(l => mctx.measureText(l).width)) + 4;
+  return Math.max(8, ...textLines(o).map(l => l.reduce((w, [s, f]) => { mctx.font = fontOf(o, f); return w + mctx.measureText(s).width; }, 0))) + 4;
 }
 function bbox(o) {
   if (o.type === 'text') { const top = o.line - baseline(o.size, o.font); return { x0: o.x, y0: top, x1: o.x + textWidth(o), y1: top + o.text.split('\n').length * SIZES[o.size].lh }; }
@@ -531,7 +548,12 @@ function textEl(o) {
   d.className = 't'; d.dataset.id = o.id;
   Object.assign(d.style, { left: o.x + 'px', top: (o.line - baseline(o.size, o.font)) + 'px', fontSize: z.font + 'px',
     lineHeight: z.lh + 'px', fontFamily: FONTS[o.font].css, color: colorOf(o) });
-  d.textContent = o.text;
+  for (const [s, f] of runsOf(o)) {
+    let n = document.createTextNode(s);
+    if (f.includes('u')) { const u = document.createElement('u'); u.appendChild(n); n = u; }
+    if (f.includes('b')) { const b = document.createElement('b'); b.appendChild(n); n = b; }
+    d.appendChild(n);
+  }
   return d;
 }
 function render() {
@@ -604,6 +626,7 @@ function paintBar() {
   $('swatches').innerHTML = list.map((c, i) => `<button class="sw${i === sel ? ' on' : ''}" data-color="${i}" style="background:${c}" title="Colour ${i + 1}"></button>`).join('');
   $('fontBtn').style.fontFamily = FONTS[ui.font].css;
   $('fontBtn').title = 'Writing style: ' + FONTS[ui.font].label + ' (click to change)';
+  paintFmt();
   $('scrollBtn').classList.toggle('on', S.scroll);
   $('startBtn').style.display = S.lesson ? 'none' : '';
   $('endBtn').style.display = S.lesson ? 'flex' : 'none';
@@ -619,7 +642,7 @@ function paintBar() {
   $('themeChips').innerHTML = Object.keys(THEMES).map(k => `<button class="${k === S.theme ? ' on' : ''}" data-theme="${k}" title="${THEMES[k].label}"><span class="thm" style="background:${THEMES[k].bg}"></span></button>`).join('');
   paintSel();
 }
-const pops = ['help', 'pics', 'timerPop', 'startPop', 'endPop', 'resumePop'];
+const pops = ['prepPop', 'help', 'pics', 'timerPop', 'startPop', 'endPop', 'resumePop'];
 function openPop(id) { if (editing) commitEdit(); for (const p of pops) $(p).classList.toggle('show', p === id && !$(p).classList.contains('show')); }
 function closePops() { for (const p of pops) $(p).classList.remove('show'); }
 document.querySelectorAll('[data-close]').forEach(b => b.onclick = closePops);
@@ -647,6 +670,16 @@ bar.addEventListener('click', e => {
       render();
     }
   }
+  else if (b.id === 'boldBtn' || b.id === 'underBtn') {
+    const f = b.id === 'boldBtn' ? 'b' : 'u';
+    if (editing) document.execCommand(f === 'b' ? 'bold' : 'underline');
+    else if (selObj && selObj.type === 'text') {
+      pushUndo(snap());
+      const on = !runsOf(selObj).every(r => r[1].includes(f));
+      setRuns(selObj, runsOf(selObj).map(([s, g]) => [s, flags(f === 'b' ? on : g.includes('b'), f === 'u' ? on : g.includes('u'))]));
+    }
+    else toast('While typing, select some words and press B or U · in Move mode, click a text first');
+  }
   else if (b.id === 'fontBtn') { const k = Object.keys(FONTS); ui.font = k[(k.indexOf(ui.font) + 1) % k.length]; restyleEditing(); }
   else if (b.id === 'picBtn') { openPop('pics'); paintPics(); }
   else if (b.id === 'undoBtn') restore(undoStack, redoStack);
@@ -656,6 +689,7 @@ bar.addEventListener('click', e => {
   else if (b.id === 'nextBtn') goPage(S.cur + 1);
   else if (b.id === 'addBtn') addPage();
   else if (b.id === 'scrollBtn') { S.scroll = !S.scroll; if (!S.scroll) scroller.scrollTo(0, 0); toast(S.scroll ? 'Scroll on: swipe with two fingers to move down or right' : 'Scroll off: one-screen board'); }
+  else if (b.id === 'prepBtn') { openPop('prepPop'); loadPrepList(); }
   else if (b.id === 'timerBtn') { openPop('timerPop'); paintTimerPop(); }
   else if (b.id === 'startBtn') { openPop('startPop'); paintStartPop(); }
   else if (b.dataset.bg) S.bg = b.dataset.bg;
@@ -668,6 +702,16 @@ bar.addEventListener('click', e => {
 });
 $('peek').onclick = () => { ui.bar = true; save(); paintBar(); };
 
+function paintFmt() {                     // B / U buttons show the style at the caret, or of the selected text
+  let b = false, u = false;
+  if (editing) { b = document.queryCommandState('bold'); u = document.queryCommandState('underline'); }
+  else {
+    const o = ui.tool === 'move' && selId && page().objs.find(x => x.id === selId);
+    if (o && o.type === 'text') { b = runsOf(o).every(r => r[1].includes('b')); u = runsOf(o).every(r => r[1].includes('u')); }
+  }
+  $('boldBtn').classList.toggle('on', b); $('underBtn').classList.toggle('on', u);
+}
+document.addEventListener('selectionchange', () => { if (editing) paintFmt(); });
 function restyleEditing() {
   if (!editing) return;
   const o = editing.o, el = editing.el, z = SIZES[ui.size];
@@ -747,11 +791,11 @@ function clearPage() {
 function startEdit(o, before, isNew, caretX, caretY) {
   render();
   const el = txt.querySelector(`[data-id="${o.id}"]`);
-  el.contentEditable = 'plaintext-only';
+  el.contentEditable = 'true';
   el.classList.add('editing');
   el.style.minHeight = SIZES[o.size].lh + 'px';
   el.spellcheck = false;
-  editing = { o, el, before, orig: isNew ? null : o.text };
+  editing = { o, el, before, orig: isNew ? null : JSON.stringify([o.text, o.runs, o.size, o.font, o.ci]) };
   el.focus({ preventScroll: true });
   const sel = getSelection(), r = (caretX != null && document.caretRangeFromPoint) ? document.caretRangeFromPoint(caretX, caretY) : null;
   if (r && el.contains(r.startContainer)) { sel.removeAllRanges(); sel.addRange(r); }
@@ -776,18 +820,38 @@ function nextAutoPos() {
 function commitEdit() {
   const { o, el, before, orig } = editing;
   editing = null;
-  const t = el.innerText.replace(/\s+$/, '');
-  if (!t) {
+  const runs = readRuns(el);
+  while (runs.length && !/\S/.test(runs[runs.length - 1][0])) runs.pop();
+  if (runs.length) runs[runs.length - 1][0] = runs[runs.length - 1][0].replace(/\s+$/, '');
+  if (!runs.length) {
     page().objs = page().objs.filter(x => x !== o);
     if (orig) pushUndo(before);
   } else {
-    o.text = t;
-    if (t !== orig || orig == null) pushUndo(before);
+    setRuns(o, runs);
+    if (orig == null || JSON.stringify([o.text, o.runs, o.size, o.font, o.ci]) !== orig) pushUndo(before);
     lastPos = { x: o.x, y: lastBaseline(o) };
   }
   getSelection().removeAllRanges();
   save(); render();
 }
+
+function readRuns(el) {                   // the edited box back into [[text, flags]]
+  const runs = [];
+  (function walk(n, b, u) {
+    for (const c of n.childNodes) {
+      if (c.nodeType === 3) { runs.push([c.data, flags(b, u)]); continue; }
+      if (c.nodeType !== 1) continue;
+      if (c.tagName === 'BR') { runs.push(['\n', flags(b, u)]); continue; }
+      if (/^(DIV|P)$/.test(c.tagName) && runs.length) runs.push(['\n', flags(b, u)]);
+      const fw = c.style.fontWeight, td = c.style.textDecorationLine || c.style.textDecoration || '';
+      walk(c, /^(B|STRONG)$/.test(c.tagName) || fw === 'bold' || +fw >= 600 ? true : fw === 'normal' || +fw ? false : b,
+              c.tagName === 'U' || td.includes('underline') ? true : td.includes('none') ? false : u);
+    }
+  })(el, false, false);
+  return runs;
+}
+txt.addEventListener('paste', e => { if (!editing) return; e.preventDefault(); document.execCommand('insertText', false, e.clipboardData.getData('text/plain')); });
+txt.addEventListener('drop', e => { if (editing) e.preventDefault(); });
 
 /* ---------- hit testing (board coordinates) ---------- */
 function segDist(px, py, a, b) {
@@ -924,6 +988,8 @@ document.addEventListener('keydown', e => {
   if (editing) {
     if (e.key === 'Escape') { e.preventDefault(); commitEdit(); }
     else if (e.key === 'Tab') e.preventDefault();
+    else if (e.key === 'Enter') { e.preventDefault(); document.execCommand('insertLineBreak'); }
+    else if (ctrl && 'ie'.includes(e.key.toLowerCase())) e.preventDefault();   // only bold and underline are kept
     return;                                              // everything else is typing
   }
   if (e.target.matches && e.target.matches('input, select, textarea')) {
@@ -961,8 +1027,16 @@ function drawObjects(g, p) {
   g.globalAlpha = TH().hlA; for (const o of p.objs) if (o.kind === 'hl') strokes(o); g.globalAlpha = 1;
   for (const o of p.objs) if (o.type === 'text') {
     const z = SIZES[o.size];
-    g.font = `${z.font}px ${FONTS[o.font].css}`; g.fillStyle = colorOf(o); g.textBaseline = 'alphabetic';
-    o.text.split('\n').forEach((ln, i) => g.fillText(ln, o.x + 2, o.line + i * z.lh));
+    g.fillStyle = colorOf(o); g.textBaseline = 'alphabetic';
+    textLines(o).forEach((ln, i) => {
+      let x = o.x + 2; const y = o.line + i * z.lh;
+      for (const [s, f] of ln) {
+        g.font = fontOf(o, f); const w = g.measureText(s).width;
+        g.fillText(s, x, y);
+        if (f.includes('u')) g.fillRect(x, y + Math.round(z.font * .1), w, Math.max(2, Math.round(z.font / 16)));
+        x += w;
+      }
+    });
   }
   for (const o of p.objs) {
     if (o.kind === 'pen') strokes(o);
@@ -1398,6 +1472,31 @@ $('smartBar').addEventListener('click', e => {
   else if (b.dataset.ss) applySmart({ type: 'shape' });
   else if (b.dataset.sp) applySmart({ type: 'pic', value: b.dataset.sp });
   else if (b.dataset.sk) applySmart({ type: 'keep' });
+});
+
+/* ---------- prepared lesson pages (WHITEBOARD\Prepared\*.json, served by the helper) ---------- */
+async function loadPrepList() {
+  const box = $('prepList');
+  if (!ONLINE) { box.textContent = 'Prepared pages open when the board is started with the Whiteboard shortcut.'; return; }
+  box.textContent = '…';
+  try {
+    const j = await (await fetch('/prepared')).json();
+    box.innerHTML = j.lessons.length ? j.lessons.map(n => `<button class="btn" style="display:block;width:100%;text-align:left;margin:5px 0" data-prep="${n.replace(/"/g, '&quot;')}">📄 ${n}</button>`).join('')
+      : 'No prepared pages yet. They go in the WHITEBOARD\\Prepared folder.';
+  } catch (e) { box.textContent = 'Could not reach the helper.'; }
+}
+$('prepPop').addEventListener('click', async e => {
+  const b = e.target.closest('[data-prep]'); if (!b) return;
+  try {
+    const j = await (await fetch('/Prepared/' + encodeURIComponent(b.dataset.prep) + '.json')).json();
+    if (editing) commitEdit();
+    pushUndo(snap());
+    const at = S.cur + 1, pages = (j.pages || []).map(p => ({ id: newId(), objs: (p.objs || []).map(o => Object.assign({}, o, { id: newId() })) }));
+    S.pages.splice(at, 0, ...pages); S.cur = at; lastPos = null; selId = null;
+    if (j.scroll) S.scroll = true;
+    closePops(); save(); paintBar(); render(); scroller.scrollTo(0, 0);
+    toast('Added "' + b.dataset.prep + '" as page ' + (at + 1));
+  } catch (err) { toast('Could not open that page'); }
 });
 
 /* ---------- full screen ---------- */
