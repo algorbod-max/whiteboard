@@ -10,6 +10,13 @@
 html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); font-family: "Segoe UI", Arial, sans-serif; }
 #scroller { position: fixed; inset: 0; overflow: hidden; background: var(--bg); }
 #scroller.scroll { overflow: auto; }
+#ui { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; pointer-events: none; transform-origin: 0 0; z-index: 10; }
+#ui > *, #bar > .panel { pointer-events: auto; }
+#cover { position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; display: none; cursor: pointer; border-top: 3px solid var(--blue);
+  background: var(--bg) repeating-linear-gradient(135deg, rgba(128,128,128,.07) 0 14px, transparent 14px 28px); }
+#cover .handle span { position: sticky; left: 130px; padding: 0 12px; }
+#cover .handle { position: sticky; top: 0; height: 34px; display: flex; align-items: center;
+  background: rgba(26,61,143,.92); color: #fff; font-size: 14px; cursor: ns-resize; user-select: none; }
 #scroller::-webkit-scrollbar { width: 10px; height: 10px; }
 #scroller::-webkit-scrollbar-thumb { background: rgba(128,128,128,.35); border-radius: 5px; }
 #scroller::-webkit-scrollbar-corner { background: transparent; }
@@ -130,6 +137,7 @@ kbd { background: #f1f3f7; border: 1px solid #d8dce5; border-radius: 4px; paddin
     <svg id="ink" class="layer"></svg>
     <div id="sel"><i></i></div>
     <div id="smartBar"></div>
+    <div id="cover"><div class="handle"><span>▼ Click, <b>Space</b> or <b>↓</b> to show more · <b>↑</b> back · drag this bar to move it</span></div></div>
   </div>
 </div>
 <canvas id="map" width="180" height="120" title="Where you are on the board: click to jump"></canvas>
@@ -163,6 +171,7 @@ kbd { background: #f1f3f7; border: 1px solid #d8dce5; border-radius: 4px; paddin
   <span class="sep"></span>
   <button id="prepBtn" title="Open a lesson page prepared in advance">📂&nbsp;Prepared</button>
   <button id="scrollBtn" title="Scroll: make the board bigger than the screen (down and right)">⇕&nbsp;Scroll</button>
+  <button id="coverBtn" title="Cover: hide the page and show it little by little (Space / ↓ = more, ↑ = back)">▤&nbsp;Cover</button>
   <button id="timerBtn" title="Timer for assignments, quizzes, tests…">⏱&nbsp;Timer</button>
   <button id="startBtn" title="Start a lesson: at the end the whole board is saved as one picture">●&nbsp;Start lesson</button>
   <span class="sep"></span>
@@ -199,7 +208,7 @@ kbd { background: #f1f3f7; border: 1px solid #d8dce5; border-radius: 4px; paddin
    <span><kbd>Alt</kbd>+<kbd>B</kbd> Bold</span><span><kbd>Alt</kbd>+<kbd>U</kbd> Underline</span><span><kbd>Alt</kbd>+<kbd>W</kbd> Writing style</span><span><kbd>Alt</kbd>+<kbd>I</kbd> Images (pictures)</span>
    <span><kbd>Alt</kbd>+<kbd>N</kbd> New page</span><span><kbd>Alt</kbd>+<kbd>←</kbd> / <kbd>→</kbd> Pages</span><span><kbd>Alt</kbd>+<kbd>O</kbd> Open prepared</span><span><kbd>Alt</kbd>+<kbd>R</kbd> Roll: scroll on / off</span>
    <span><kbd>Alt</kbd>+<kbd>C</kbd> Clock: timer</span><span><kbd>Alt</kbd>+<kbd>L</kbd> Lesson start / end</span><span><kbd>Alt</kbd>+<kbd>G</kbd> Grid / lines / plain</span><span><kbd>Alt</kbd>+<kbd>K</kbd> blacKboard colours</span>
-   <span><kbd>Alt</kbd>+<kbd>S</kbd> Save page picture</span><span><kbd>Alt</kbd>+<kbd>F</kbd> Full screen</span><span><kbd>Alt</kbd>+<kbd>Delete</kbd> Clear page</span><span><kbd>F1</kbd> or <kbd>Alt</kbd>+<kbd>/</kbd> This help</span>
+   <span><kbd>Alt</kbd>+<kbd>V</kbd> coVer: show little by little</span><span><kbd>Space</kbd> / <kbd>↓</kbd> Show more (cover on)</span><span><kbd>Alt</kbd>+<kbd>S</kbd> Save page picture</span><span><kbd>Alt</kbd>+<kbd>F</kbd> Full screen</span><span><kbd>Alt</kbd>+<kbd>Delete</kbd> Clear page</span><span><kbd>F1</kbd> or <kbd>Alt</kbd>+<kbd>/</kbd> This help</span>
    <span><kbd>Ctrl</kbd>+<kbd>Z</kbd> Undo · <kbd>Ctrl</kbd>+<kbd>Y</kbd> Redo</span><span><kbd>Page Up</kbd>/<kbd>Down</kbd> Pages</span><span><kbd>Tab</kbd> Hide the toolbar</span><span><kbd>Esc</kbd> Finish typing</span>
   </div>
   <span style="font-size:13px;color:#666">The Alt keys work even while you are typing. Pointing at a button also shows its key.</span>
@@ -698,6 +707,40 @@ function textEl(o) {
   }
   return d;
 }
+/* ---------- cover: show a page little by little ---------- */
+function coverStops(p) {                   // y positions between rows of things on the page
+  const bs = p.objs.map(bbox).sort((a, b) => a.y0 - b.y0), rows = [];
+  for (const b of bs) { const l = rows[rows.length - 1]; if (l && b.y0 < l.y1 - 4) l.y1 = Math.max(l.y1, b.y1); else rows.push({ y0: b.y0, y1: b.y1 }); }
+  const stops = [];
+  for (let i = 0; i < rows.length - 1; i++) stops.push(Math.round((rows[i].y1 + rows[i + 1].y0) / 2));
+  return stops;
+}
+function startCover(p) { const st = coverStops(p); if (st.length) p.cover = st[0]; else delete p.cover; }
+function reveal(dir) {
+  const p = page(); if (p.cover == null) return;
+  const st = coverStops(p);
+  const next = dir > 0 ? st.find(y => y > p.cover + 1) : [...st].reverse().find(y => y < p.cover - 1);
+  if (next != null) p.cover = next;
+  else if (dir > 0) { delete p.cover; toast('Everything is shown · ▤ Cover hides it again'); }
+  save(); paintCover(); drawMap(); paintBar();
+  if (p.cover != null && p.cover > scroller.scrollTop + scroller.clientHeight - 140)
+    scroller.scrollTo({ top: p.cover - scroller.clientHeight * 0.55, behavior: 'smooth' });
+}
+function paintCover() {
+  const c = $('cover'), y = page().cover;
+  if (y == null) { c.style.display = 'none'; return; }
+  Object.assign(c.style, { display: 'block', top: y + 'px' });
+}
+$('cover').addEventListener('pointerdown', e => {
+  e.stopPropagation(); e.preventDefault(); closePops();
+  if (editing) commitEdit();
+  if (!e.target.closest('.handle')) { reveal(1); return; }
+  const c = $('cover'), y0 = e.clientY, start = page().cover; let moved = false;
+  c.setPointerCapture(e.pointerId);
+  c.onpointermove = ev => { if (Math.abs(ev.clientY - y0) > 4) moved = true;
+    page().cover = Math.max(0, Math.round(start + ev.clientY - y0)); paintCover(); };
+  c.onpointerup = () => { c.onpointermove = c.onpointerup = null; if (!moved) reveal(1); else { save(); drawMap(); } };
+});
 function render() {
   hlLayer.innerHTML = ''; inkLayer.innerHTML = ''; txt.innerHTML = '';
   for (const o of page().objs) {
@@ -705,7 +748,7 @@ function render() {
     else if (o.type === 'pic') inkLayer.appendChild(picEl(o));
     else (o.kind === 'hl' ? hlLayer : inkLayer).appendChild(pathEl(o));
   }
-  fitWorld(); paintSel(); drawMap();
+  fitWorld(); paintCover(); paintSel(); drawMap();
   $('pageLabel').textContent = (S.cur + 1) + ' / ' + S.pages.length;
 }
 function fitWorld() {
@@ -743,7 +786,8 @@ function drawMap() {
   map.width = Math.round(W * k); map.height = Math.round(H * k); map.style.display = 'block';
   mg.fillStyle = TH().bg; mg.fillRect(0, 0, map.width, map.height);
   for (const o of page().objs) {
-    const b = bbox(o); mg.fillStyle = o.kind === 'hl' ? HL[o.ci ?? 0] : (colorOf(o) || '#888');
+    const b = bbox(o); if (page().cover != null && b.y0 >= page().cover) continue;
+    mg.fillStyle = o.kind === 'hl' ? HL[o.ci ?? 0] : (colorOf(o) || '#888');
     mg.fillRect(b.x0 * k, b.y0 * k, Math.max(2, (b.x1 - b.x0) * k), Math.max(2, (b.y1 - b.y0) * k));
   }
   mg.strokeStyle = '#4a78d8'; mg.lineWidth = 2;
@@ -770,6 +814,7 @@ function paintBar() {
   $('fontBtn').title = 'Writing style: ' + FONTS[ui.font].label + ' (click to change)';
   paintFmt();
   $('scrollBtn').classList.toggle('on', S.scroll);
+  $('coverBtn').classList.toggle('on', page().cover != null);
   $('startBtn').style.display = S.lesson ? 'none' : '';
   $('endBtn').style.display = S.lesson ? 'flex' : 'none';
   document.body.classList.toggle('lesson', !!S.lesson);
@@ -832,6 +877,11 @@ bar.addEventListener('click', e => {
   else if (b.id === 'addBtn') addPage();
   else if (b.id === 'scrollBtn') { S.scroll = !S.scroll; if (!S.scroll) scroller.scrollTo(0, 0); toast(S.scroll ? 'Scroll on: swipe with two fingers to move down or right' : 'Scroll off: one-screen board'); }
   else if (b.id === 'prepBtn') { openPop('prepPop'); loadPrepList(); }
+  else if (b.id === 'coverBtn') {
+    if (editing) commitEdit();
+    if (page().cover != null) delete page().cover;
+    else { startCover(page()); toast(page().cover != null ? 'Click the cover, or press Space / ↓, to show the next line' : 'Nothing to cover on this page'); }
+  }
   else if (b.id === 'timerBtn') { openPop('timerPop'); paintTimerPop(); }
   else if (b.id === 'startBtn') { openPop('startPop'); paintStartPop(); }
   else if (b.dataset.bg) S.bg = b.dataset.bg;
@@ -1128,7 +1178,7 @@ world.addEventListener('pointerleave', () => { $('ring').style.display = 'none';
 /* ---------- Alt + first letter: every tool and option ---------- */
 const ALTKEYS = { t: '[data-tool="text"]', p: '[data-tool="pen"]', h: '[data-tool="hl"]', e: '[data-tool="erase"]', m: '[data-tool="move"]',
   w: '#fontBtn', b: '#boldBtn', u: '#underBtn', i: '#picBtn', n: '#addBtn', o: '#prepBtn', c: '#timerBtn', r: '#scrollBtn',
-  s: '#pngBtn', f: '#fsBtn', '/': '#helpBtn', delete: '#clearBtn', arrowleft: '#prevBtn', arrowright: '#nextBtn' };
+  s: '#pngBtn', v: '#coverBtn', f: '#fsBtn', '/': '#helpBtn', delete: '#clearBtn', arrowleft: '#prevBtn', arrowright: '#nextBtn' };
 const KEYNAME = { '/': '/', delete: 'Delete', arrowleft: '←', arrowright: '→' };
 for (const [k, sel] of Object.entries(ALTKEYS)) { const b = bar.querySelector(sel); if (b) b.title += ` (Alt+${KEYNAME[k] || k.toUpperCase()})`; }
 function nextChip(id) { const bs = [...$(id).children]; return bs[(bs.findIndex(x => x.classList.contains('on')) + 1) % bs.length]; }
@@ -1175,6 +1225,7 @@ document.addEventListener('keydown', e => {
     e.preventDefault(); pushUndo(snap()); page().objs = page().objs.filter(o => o.id !== selId); selId = null; save(); render(); return;
   }
   if (ctrl || e.altKey) return;
+  if (page().cover != null && [' ', 'ArrowDown', 'ArrowUp'].includes(e.key)) { e.preventDefault(); reveal(e.key === 'ArrowUp' ? -1 : 1); return; }
   if (ui.tool === 'text') {
     if (e.key.length === 1 || e.key === 'Enter') {          // just start typing: it goes on the next line
       e.preventDefault();
@@ -1650,7 +1701,7 @@ async function loadPrepList() {
     const j = await (await fetch('/prepared')).json();
     box.innerHTML = j.lessons.length ? j.lessons.map(n => `<button class="btn" style="display:block;width:100%;text-align:left;margin:5px 0" data-prep="${n.replace(/"/g, '&quot;')}">📄 ${n}</button>`).join('')
       : 'No prepared pages yet. They go in the WHITEBOARD\\Prepared folder.';
-  } catch (e) { box.textContent = 'Could not reach the helper.'; }
+  } catch (e) { box.textContent = 'The whiteboard helper has stopped. Close this window and open the whiteboard again with the Whiteboard shortcut.'; }
 }
 $('prepPop').addEventListener('click', async e => {
   const b = e.target.closest('[data-prep]'); if (!b) return;
@@ -1659,10 +1710,11 @@ $('prepPop').addEventListener('click', async e => {
     if (editing) commitEdit();
     pushUndo(snap());
     const at = S.cur + 1, pages = (j.pages || []).map(p => ({ id: newId(), objs: (p.objs || []).map(o => Object.assign({}, o, { id: newId() })) }));
+    pages.forEach(startCover);
     S.pages.splice(at, 0, ...pages); S.cur = at; lastPos = null; selId = null;
     if (j.scroll) S.scroll = true;
     closePops(); save(); paintBar(); render(); scroller.scrollTo(0, 0);
-    toast('Added "' + b.dataset.prep + '" as page ' + (at + 1));
+    toast('Added "' + b.dataset.prep + '" as page ' + (at + 1) + ' · click the cover or press Space to show more', null, null, 5000);
   } catch (err) { toast('Could not open that page'); }
 });
 
@@ -1671,6 +1723,16 @@ function toggleFull() {
   if (document.fullscreenElement) document.exitFullscreen();
   else document.documentElement.requestFullscreen().catch(() => toast('Press F11 for full screen'));
 }
+
+if (ONLINE) setInterval(() => fetch('/ping').catch(() => {}), 5 * 60 * 1000);   // keeps the helper running while the board is open
+
+const uiBox = document.createElement('div'); uiBox.id = 'ui'; document.body.appendChild(uiBox);   // menus stay on screen when zoomed
+for (const el of [$('bar'), $('peek'), $('endBtn'), $('timerBox'), map, $('toast'), ...document.querySelectorAll('.pop')]) uiBox.appendChild(el);
+function fitUi() {
+  const v = window.visualViewport; if (!v) return;
+  uiBox.style.transform = v.scale > 1.001 ? `translate(${v.offsetLeft}px, ${v.offsetTop}px) scale(${1 / v.scale})` : '';
+}
+if (window.visualViewport) { visualViewport.addEventListener('resize', fitUi); visualViewport.addEventListener('scroll', fitUi); }
 
 applyTheme(); paintBar(); render(); tickTimer(); tickClock(); checkResume();
 setInterval(() => { tickClock(); if (ui.timer) tickTimer(); }, 250);
