@@ -6,6 +6,7 @@
 <title>Whiteboard</title>
 <link rel="icon" type="image/png" href="whiteboard.png">
 <style>
+:root, .pop, #smartBar { --pbg: #fff; --pfg: #333; --pbd: #e1e4ec; --phv: #f0f2f7; --pon: #e3e9fb; --ponfg: #1a3d8f; --psep: #e2e4ea; --pdim: #555; }
 :root { --bg: #fff; --line: rgba(60,100,190,.14); --margin: rgba(220,70,70,.20); --blue: #1a3d8f; }
 html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); font-family: "Segoe UI", Arial, sans-serif; }
 #scroller { position: fixed; inset: 0; overflow: hidden; background: var(--bg); }
@@ -39,7 +40,7 @@ svg.layer, #txt { position: absolute; left: 0; top: 0; pointer-events: none; ove
 #sel i { position: absolute; right: -8px; bottom: -8px; width: 14px; height: 14px; background: #fff; border: 2px solid #4a78d8; border-radius: 3px; }
 
 #bar { display: contents; }
-#bar .panel { position: fixed; background: #fff; border: 1px solid #e1e4ec; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.12);
+#bar .panel { position: fixed; background: var(--pbg); border: 1px solid var(--pbd); color: var(--pfg); transition: opacity .45s, translate .45s; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,.12);
   padding: 4px 6px; z-index: 10; font-size: 14px; user-select: none; white-space: nowrap; }
 #barTop, #barBottom { left: 12px; right: 12px; width: fit-content; margin: 0 auto; }
 #barTop { top: 8px; }
@@ -48,7 +49,11 @@ body.lesson #barTop { left: 270px; right: 270px; }
 #barLeft button { text-align: left; padding: 8px 9px; }
 #barBottom { bottom: 8px; }
 #bar.hidden { display: none; }
-.modes { display: inline-flex; border: 1px solid #cfd3dd; border-radius: 9px; overflow: hidden; }
+#bar .panel.asleep { opacity: 0; pointer-events: none; }
+#barLeft.asleep { translate: -24px 0; }
+#barTop.asleep { translate: 0 -16px; }
+#barBottom.asleep { translate: 0 16px; }
+.modes { display: inline-flex; border: 1px solid var(--pbd); border-radius: 9px; overflow: hidden; }
 .modes button { border-radius: 0; padding: 5px 9px; }
 .modes button[data-mode="smart"].on { background: #fff4d6; color: #8a5a00; }
 #smartBar { position: absolute; display: none; gap: 4px; align-items: center; background: #fff; border: 1px solid #d9dde6; border-radius: 10px;
@@ -62,16 +67,16 @@ body.lesson #barTop { left: 270px; right: 270px; }
 .keys { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 2px 14px; font-size: 13px; margin-bottom: 6px; }
 .brow.small { font-size: 13px; }
 .brow.small button { padding: 4px 7px; }
-.chip.on, #bgChips button.on, #themeChips button.on { background: #e3e9fb; color: var(--blue); font-weight: 600; }
+.chip.on, #bgChips button.on, #themeChips button.on { background: var(--pon); color: var(--ponfg); font-weight: 600; }
 .thm { display: inline-block; width: 18px; height: 14px; border-radius: 3px; border: 1px solid #b9c1d3; vertical-align: -2px; }
-button { font: inherit; border: 0; background: none; padding: 6px 7px; border-radius: 8px; cursor: pointer; color: #333; }
-button:hover { background: #f0f2f7; }
-button.on { background: #e3e9fb; color: var(--blue); font-weight: 600; }
-.sw { width: 22px; height: 22px; border-radius: 50%; padding: 0; margin: 0 2px; border: 2px solid #fff; box-shadow: 0 0 0 1px #cfd3dd; }
+button { font: inherit; border: 0; background: none; padding: 6px 7px; border-radius: 8px; cursor: pointer; color: var(--pfg); }
+button:hover { background: var(--phv); }
+button.on { background: var(--pon); color: var(--ponfg); font-weight: 600; }
+.sw { width: 22px; height: 22px; border-radius: 50%; padding: 0; margin: 0 2px; border: 2px solid var(--pbg); box-shadow: 0 0 0 1px #cfd3dd; }
 .sw:hover { transform: scale(1.12); }
 .sw.on { box-shadow: 0 0 0 2.5px var(--blue); }
-.sep { width: 1px; height: 22px; background: #e2e4ea; margin: 0 3px; }
-#pageLabel { min-width: 40px; text-align: center; color: #555; font-variant-numeric: tabular-nums; }
+.sep { width: 1px; height: 22px; background: var(--psep); margin: 0 3px; }
+#pageLabel { min-width: 40px; text-align: center; color: var(--pdim); font-variant-numeric: tabular-nums; }
 #startBtn { color: #b42318; }
 #peek { position: fixed; top: 6px; left: 8px; z-index: 10; opacity: .4; display: none; background: #fff; }
 #peek:hover { opacity: 1; }
@@ -181,6 +186,7 @@ kbd { background: #f1f3f7; border: 1px solid #d8dce5; border-radius: 4px; paddin
   <span class="sep"></span>
   <button id="pngBtn" title="Save this page as a picture (WHITEBOARD\Sessions\Single pages)">⤓&nbsp;Save page</button>
   <button id="fsBtn" title="Full screen (F11)">⛶</button>
+  <button id="autoBtn" title="Auto-hide: menus fade away after 5 seconds; move the mouse to their side of the screen to bring them back">◐&nbsp;Auto-hide</button>
   <button id="hideBtn" title="Hide the toolbar (Tab)">⌃</button>
   <button id="helpBtn" title="Help">?</button>
  </div>
@@ -270,8 +276,8 @@ const FONTS = {
 };
 const THEMES = {
   white: { label: 'Whiteboard', bg: '#ffffff', line: 'rgba(60,100,190,.14)', margin: 'rgba(220,70,70,.20)', pen: ['#222222', '#1a3d8f', '#c62828', '#2e7d32', '#e67e00'], hlA: .55 },
-  black: { label: 'Blackboard', bg: '#1f2326', line: 'rgba(255,255,255,.08)', margin: 'rgba(255,130,130,.25)', pen: ['#f4f4ee', '#9fd3ff', '#ff8a80', '#b9f6a0', '#ffe680'], hlA: .38 },
-  green: { label: 'Green chalkboard', bg: '#24443c', line: 'rgba(255,255,255,.09)', margin: 'rgba(255,180,160,.25)', pen: ['#f6f3e6', '#a8dcff', '#ffaaa0', '#d4f7b0', '#ffe680'], hlA: .38 }
+  black: { label: 'Blackboard', bg: '#1f2326', line: 'rgba(255,255,255,.08)', margin: 'rgba(255,130,130,.25)', pen: ['#f4f4ee', '#9fd3ff', '#ff8a80', '#b9f6a0', '#ffe680'], hlA: .38, menu: { pbg: 'rgba(44,50,54,.93)', pfg: '#e8e6dc', pbd: 'rgba(255,255,255,.13)', phv: 'rgba(255,255,255,.09)', pon: 'rgba(159,211,255,.20)', ponfg: '#d6ebff', psep: 'rgba(255,255,255,.16)', pdim: '#c8c6bc' } },
+  green: { label: 'Green chalkboard', bg: '#24443c', line: 'rgba(255,255,255,.09)', margin: 'rgba(255,180,160,.25)', pen: ['#f6f3e6', '#a8dcff', '#ffaaa0', '#d4f7b0', '#ffe680'], hlA: .38, menu: { pbg: 'rgba(36,70,61,.93)', pfg: '#e8e6dc', pbd: 'rgba(255,255,255,.13)', phv: 'rgba(255,255,255,.09)', pon: 'rgba(159,211,255,.20)', ponfg: '#d6ebff', psep: 'rgba(255,255,255,.16)', pdim: '#c8c6bc' } }
 };
 const HL = ['#ffe14d', '#8ee68f', '#ff9fd0', '#93d5ff', '#ffbe6b'];
 const BGS = { lines: 'Notebook lines', grid: 'Grid', plain: 'Plain' };
@@ -775,6 +781,8 @@ function paintSel() {
 function applyTheme() {
   const t = TH(), r = document.documentElement.style;
   r.setProperty('--bg', t.bg); r.setProperty('--line', t.line); r.setProperty('--margin', t.margin);
+  for (const k of ['pbg', 'pfg', 'pbd', 'phv', 'pon', 'ponfg', 'psep', 'pdim'])   // menus match the board (light board: default colours)
+    if (t.menu) r.setProperty('--' + k, t.menu[k]); else r.removeProperty('--' + k);
 }
 
 /* ---------- mini map ---------- */
@@ -823,6 +831,8 @@ function paintBar() {
   bar.querySelectorAll('[data-mode]').forEach(b => b.classList.toggle('on', b.dataset.mode === (ui.mode || 'default')));
   scroller.classList.toggle('scroll', S.scroll);
   bar.classList.toggle('hidden', !ui.bar);
+  $('autoBtn').classList.toggle('on', ui.autohide);
+  if (!ui.autohide) for (const p of PANELS) { clearTimeout(p._t); p.classList.remove('asleep'); }
   $('peek').style.display = ui.bar ? 'none' : 'block';
   $('ring').style.display = 'none';
   $('bgChips').innerHTML = Object.keys(BGS).map(k => `<button class="${k === S.bg ? ' on' : ''}" data-bg="${k}" title="Background: ${BGS[k]}">${BGICON[k]}</button>`).join('');
@@ -888,6 +898,7 @@ bar.addEventListener('click', e => {
   else if (b.dataset.theme) { S.theme = b.dataset.theme; applyTheme(); }
   else if (b.id === 'pngBtn') { closePops(); savePagePicture(); }
   else if (b.id === 'fsBtn') { closePops(); toggleFull(); }
+  else if (b.id === 'autoBtn') { ui.autohide = !ui.autohide; if (ui.autohide) { PANELS.forEach(wake); toast('Menus now fade away after 5 seconds · move the mouse to a side of the screen to bring them back'); } }
   else if (b.id === 'hideBtn') { closePops(); ui.bar = false; }
   else if (b.id === 'helpBtn') { openPop('help'); }
   save(); paintBar(); if (!editing) render();
@@ -1195,7 +1206,7 @@ function altKey(e) {
   else if (k === 'k') b = nextChip('themeChips');
   else if (k === 'l') b = S.lesson ? $('endBtn') : $('startBtn');
   if (!b) return false;
-  e.preventDefault(); b.click(); return true;
+  e.preventDefault(); const pn = b.closest('#bar .panel'); if (pn) wake(pn); b.click(); return true;
 }
 document.addEventListener('keydown', e => {
   const ctrl = e.ctrlKey || e.metaKey;
@@ -1733,6 +1744,32 @@ function fitUi() {
   uiBox.style.transform = v.scale > 1.001 ? `translate(${v.offsetLeft}px, ${v.offsetTop}px) scale(${1 / v.scale})` : '';
 }
 if (window.visualViewport) { visualViewport.addEventListener('resize', fitUi); visualViewport.addEventListener('scroll', fitUi); }
+
+/* ---------- menus fade away when not in use, come back when the mouse goes to their side ---------- */
+if (ui.autohide == null) ui.autohide = true;
+const PANELS = ['barLeft', 'barTop', 'barBottom'].map($), NEAR = 70, EDGE = 28, WAIT = 5000;
+function wake(p) { p.classList.remove('asleep'); clearTimeout(p._t); if (ui.autohide) p._t = setTimeout(() => doze(p), WAIT); }
+function doze(p) {
+  if (!ui.autohide) return;
+  if (p.matches(':hover') || p.contains(document.activeElement) || pops.some(id => $(id).classList.contains('show'))) { p._t = setTimeout(() => doze(p), 1000); return; }
+  p.classList.add('asleep');
+}
+function nearPanel(p, x, y) {
+  const r = p.getBoundingClientRect();
+  if (x > r.left - NEAR && x < r.right + NEAR && y > r.top - NEAR && y < r.bottom + NEAR) return true;
+  return p.id === 'barLeft' ? x < EDGE : p.id === 'barTop' ? y < EDGE : y > innerHeight - EDGE;   // or the screen edge on its side
+}
+document.addEventListener('pointermove', e => {
+  if (!ui.autohide || e.buttons) return;          // not while drawing
+  for (const p of PANELS) if (nearPanel(p, e.clientX, e.clientY)) wake(p);
+}, true);
+document.addEventListener('pointerdown', e => {    // touch screen: a tap near a hidden menu brings it back
+  if (!ui.autohide || e.pointerType === 'mouse') return;
+  let woke = false;
+  for (const p of PANELS) if (nearPanel(p, e.clientX, e.clientY)) { woke = woke || p.classList.contains('asleep'); wake(p); }
+  if (woke) { e.preventDefault(); e.stopPropagation(); }
+}, true);
+PANELS.forEach(wake);
 
 applyTheme(); paintBar(); render(); tickTimer(); tickClock(); checkResume();
 setInterval(() => { tickClock(); if (ui.timer) tickTimer(); }, 250);
